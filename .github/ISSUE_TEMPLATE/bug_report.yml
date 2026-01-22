@@ -1,0 +1,40 @@
+name: Bug report
+description: Report something that is broken
+title: "bug: "
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include expected vs actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List exact steps and commands.
+      placeholder: |
+        1. `make`
+        2. `make run`
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste serial output or attach screenshots.
+    validations:
+      required: false
+  - type: dropdown
+    id: env
+    attributes:
+      label: Environment
+      options:
+        - WSL2 Ubuntu
+        - Linux
+        - Other
+    validations:
+      required: true

@@ -1,0 +1,11 @@
+# Build artifacts
+build/
+isodir/
+
+# Tooling
+.vscode/
+
+# OS / editor
+Thumbs.db
+*.swp
+*.swo
