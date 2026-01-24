@@ -1,6 +1,7 @@
 #include "services/timer_service.h"
 #include "kernel/service_registry.h"
 #include "kernel/serial.h"
+#include "kernel/util.h"
 #include <stddef.h>
 
 #define TIMER_MAX_SUBSCRIBERS 8
@@ -33,21 +34,8 @@ void timer_service_init(void) {
     tick_counter = 0;
     
     serial_write("timer_service: initialized (endpoint ");
-    // Simple integer to string conversion for logging
     char buf[16];
-    int i = 0;
-    uint32_t ep = timer_endpoint;
-    do {
-        buf[i++] = '0' + (ep % 10);
-        ep /= 10;
-    } while (ep > 0 && i < 15);
-    buf[i] = '\0';
-    // Reverse the string
-    for (int j = 0; j < i / 2; j++) {
-        char tmp = buf[j];
-        buf[j] = buf[i - 1 - j];
-        buf[i - 1 - j] = tmp;
-    }
+    uint_to_str(timer_endpoint, buf, sizeof(buf));
     serial_write(buf);
     serial_write(")\n");
 }

@@ -1,6 +1,7 @@
 #include "services/echo_service.h"
 #include "kernel/service_registry.h"
 #include "kernel/serial.h"
+#include "kernel/util.h"
 #include <stddef.h>
 
 static endpoint_id_t echo_endpoint = ENDPOINT_INVALID;
@@ -21,21 +22,8 @@ void echo_service_init(void) {
     }
     
     serial_write("echo_service: initialized (endpoint ");
-    // Simple integer to string conversion for logging
     char buf[16];
-    int i = 0;
-    uint32_t ep = echo_endpoint;
-    do {
-        buf[i++] = '0' + (ep % 10);
-        ep /= 10;
-    } while (ep > 0 && i < 15);
-    buf[i] = '\0';
-    // Reverse the string
-    for (int j = 0; j < i / 2; j++) {
-        char tmp = buf[j];
-        buf[j] = buf[i - 1 - j];
-        buf[i - 1 - j] = tmp;
-    }
+    uint_to_str(echo_endpoint, buf, sizeof(buf));
     serial_write(buf);
     serial_write(")\n");
 }

@@ -147,7 +147,12 @@ static void cmd_ipcecho(const char *text) {
     ipc_msg_t reply;
     err = ipc_recv(reply_ep, &reply);
     if (err == IPC_SUCCESS && reply.type == MSG_ECHO_REPLY) {
-        reply.payload[reply.payload_len] = '\0';
+        // Ensure null termination with proper bounds checking
+        size_t safe_len = reply.payload_len;
+        if (safe_len >= IPC_MAX_PAYLOAD) {
+            safe_len = IPC_MAX_PAYLOAD - 1;
+        }
+        reply.payload[safe_len] = '\0';
         puts_both("Echo reply received: ");
         puts_both((const char *)reply.payload);
         puts_both("\n");

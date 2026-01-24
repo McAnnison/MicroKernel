@@ -2,6 +2,7 @@
 #include "kernel/service_registry.h"
 #include "kernel/vga.h"
 #include "kernel/serial.h"
+#include "kernel/util.h"
 #include <stddef.h>
 
 static endpoint_id_t console_endpoint = ENDPOINT_INVALID;
@@ -22,21 +23,8 @@ void console_service_init(void) {
     }
     
     serial_write("console_service: initialized (endpoint ");
-    // Simple integer to string conversion for logging
     char buf[16];
-    int i = 0;
-    uint32_t ep = console_endpoint;
-    do {
-        buf[i++] = '0' + (ep % 10);
-        ep /= 10;
-    } while (ep > 0 && i < 15);
-    buf[i] = '\0';
-    // Reverse the string
-    for (int j = 0; j < i / 2; j++) {
-        char tmp = buf[j];
-        buf[j] = buf[i - 1 - j];
-        buf[i - 1 - j] = tmp;
-    }
+    uint_to_str(console_endpoint, buf, sizeof(buf));
     serial_write(buf);
     serial_write(")\n");
 }
@@ -58,17 +46,17 @@ void console_service_process(void) {
             vga_puts("[LOG] ");
             serial_write("[LOG] ");
             
-            // Ensure null termination
-            if (msg.payload_len < IPC_MAX_PAYLOAD) {
-                msg.payload[msg.payload_len] = '\0';
-            } else {
-                msg.payload[IPC_MAX_PAYLOAD - 1] = '\0';
+            // Ensure null termination with proper bounds checking
+            size_t safe_len = msg.payload_len;
+            if (safe_len >= IPC_MAX_PAYLOAD) {
+                safe_len = IPC_MAX_PAYLOAD - 1;
             }
+            msg.payload[safe_len] = '\0';
             
             vga_puts((const char *)msg.payload);
             serial_write((const char *)msg.payload);
             
-            if (msg.payload_len > 0 && msg.payload[msg.payload_len - 1] != '\n') {
+            if (safe_len > 0 && msg.payload[safe_len - 1] != '\n') {
                 vga_puts("\n");
                 serial_write("\n");
             }
