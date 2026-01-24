@@ -28,7 +28,13 @@ KERNEL_C_SRCS := \
 	src/kernel/cli.c \
   src/kernel/vga.c \
   src/kernel/serial.c \
-  src/kernel/panic.c
+  src/kernel/panic.c \
+  src/kernel/ipc.c \
+  src/kernel/service_registry.c \
+  src/kernel/util.c \
+  src/services/console_service.c \
+  src/services/echo_service.c \
+  src/services/timer_service.c
 
 KERNEL_ASM_SRCS := \
   src/arch/$(ARCH)/boot.S
