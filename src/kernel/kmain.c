@@ -4,6 +4,11 @@
 #include "kernel/panic.h"
 #include "kernel/serial.h"
 #include "kernel/vga.h"
+#include "kernel/ipc.h"
+#include "kernel/service_registry.h"
+#include "services/console_service.h"
+#include "services/echo_service.h"
+#include "services/timer_service.h"
 
 void kmain(void) {
     vga_init();
@@ -12,6 +17,22 @@ void kmain(void) {
 
     serial_init();
     serial_write("microkernel: serial online\n");
+
+    // Initialize IPC subsystem
+    ipc_init();
+    serial_write("microkernel: IPC initialized\n");
+
+    // Initialize service registry
+    service_registry_init();
+    serial_write("microkernel: Service registry initialized\n");
+
+    // Initialize services
+    console_service_init();
+    echo_service_init();
+    timer_service_init();
+
+    // List registered services
+    service_list_all();
 
     vga_puts("UI: serial CLI ready (type into QEMU console).\n");
     vga_puts("Type `help` for commands.\n");
