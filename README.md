@@ -70,19 +70,40 @@ PowerShell wrappers (calls WSL):
 Build-critical code (current):
 - `src/arch/i386/boot.S`: Multiboot2 header + entry point
 - `src/arch/i386/linker.ld`: kernel linker script
-- `src/kernel/`: kernel C code (VGA text output, serial, panic)
+- `src/kernel/`: kernel C code (VGA text output, serial, panic, **IPC**, **service registry**)
 - `boot/grub/grub.cfg`: GRUB menu entry
 
-Collaboration folders (team work areas; some are placeholders today):
+Collaboration folders (team work areas):
 - `kernel/`: future home for kernel subsystems (planned)
-- `ipc/`: IPC design + implementation work
-- `services/`: service modules (echo, timer, log, monitor, ...)
+- `ipc/`: IPC design + implementation work (**implemented**)
+- `services/`: service modules (**3 services implemented: console, echo, timer**)
 - `tests/`: validation steps and (optional) host-side tests
-- `docs/`: architecture, team plan, contributing, perf writeups
+- `docs/`: architecture, team plan, contributing, perf writeups, **services demo**
 
 Architecture overview: see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 UI overview (serial CLI + next steps): see [docs/UI.md](docs/UI.md).
+
+**Services demo:** see [docs/SERVICES_DEMO.md](docs/SERVICES_DEMO.md) for complete guide.
+
+## Services
+
+Three services have been implemented:
+
+1. **Console/Log Service** - Centralized logging via IPC
+2. **Echo Service** - Request/reply pattern demonstration
+3. **Timer Service** - Periodic tick message distribution
+
+Try them in QEMU:
+```bash
+make run
+# Type in console:
+services       # List all services
+log Hello      # Send log message
+ipcecho Test   # Test echo service
+```
+
+See [services/README.md](services/README.md) for details.
 
 ## GitHub workflow
 
