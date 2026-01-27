@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a feature or improvement
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are we solving?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the approach at a high level.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How do we know it’s done?
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / links
+      required: false
