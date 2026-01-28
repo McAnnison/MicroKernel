@@ -5,6 +5,11 @@
 
 #include "kernel/serial.h"
 #include "kernel/vga.h"
+#include "kernel/ipc.h"
+#include "kernel/service_registry.h"
+#include "services/console_service.h"
+#include "services/echo_service.h"
+#include "services/timer_service.h"
 
 static void puts_both(const char *s) {
     vga_puts(s);
@@ -45,6 +50,10 @@ static void cmd_help(void) {
     puts_both("  clear        Clear VGA screen\n");
     puts_both("  echo <text>  Print text\n");
     puts_both("  about        Show build info\n");
+    puts_both("  services     List registered services\n");
+    puts_both("  log <text>   Send log message to console service\n");
+    puts_both("  ipcecho <text> Send echo request via IPC\n");
+    puts_both("  timertick    Trigger timer tick\n");
     puts_both("  halt         Halt CPU\n");
 }
 
@@ -59,6 +68,105 @@ static void cmd_halt(void) {
         __asm__ volatile ("cli; hlt");
     }
 }
+
+static void cmd_services(void) {
+    service_list_all();
+}
+
+static void cmd_log(const char *text) {
+    endpoint_id_t console_ep = service_lookup(CONSOLE_SERVICE_NAME);
+    if (console_ep == ENDPOINT_INVALID) {
+        puts_both("Error: console service not found\n");
+        return;
+    }
+    
+    // Create and send log message
+    ipc_msg_t msg;
+    msg.type = MSG_LOG;
+    msg.sender = ENDPOINT_INVALID; // CLI has no endpoint
+    
+    // Copy text to payload
+    size_t len = 0;
+    while (text[len] != '\0' && len < IPC_MAX_PAYLOAD - 1) {
+        msg.payload[len] = text[len];
+        len++;
+    }
+    msg.payload[len] = '\0';
+    msg.payload_len = len;
+    
+    ipc_error_t err = ipc_send(console_ep, &msg);
+    if (err == IPC_SUCCESS) {
+        puts_both("Log message sent via IPC\n");
+        // Process console service to print the message
+        console_service_process();
+    } else {
+        puts_both("Error: failed to send log message\n");
+    }
+}
+
+static void cmd_ipcecho(const char *text) {
+    endpoint_id_t echo_ep = service_lookup(ECHO_SERVICE_NAME);
+    if (echo_ep == ENDPOINT_INVALID) {
+        puts_both("Error: echo service not found\n");
+        return;
+    }
+    
+    // Create a temporary endpoint for receiving the reply
+    endpoint_id_t reply_ep = ipc_endpoint_create();
+    if (reply_ep == ENDPOINT_INVALID) {
+        puts_both("Error: failed to create reply endpoint\n");
+        return;
+    }
+    
+    // Create and send echo request
+    ipc_msg_t msg;
+    msg.type = MSG_ECHO;
+    msg.sender = reply_ep;
+    
+    // Copy text to payload
+    size_t len = 0;
+    while (text[len] != '\0' && len < IPC_MAX_PAYLOAD - 1) {
+        msg.payload[len] = text[len];
+        len++;
+    }
+    msg.payload[len] = '\0';
+    msg.payload_len = len;
+    
+    ipc_error_t err = ipc_send(echo_ep, &msg);
+    if (err != IPC_SUCCESS) {
+        puts_both("Error: failed to send echo request\n");
+        return;
+    }
+    
+    puts_both("Echo request sent via IPC, processing...\n");
+    
+    // Process echo service
+    echo_service_process();
+    
+    // Try to receive reply
+    ipc_msg_t reply;
+    err = ipc_recv(reply_ep, &reply);
+    if (err == IPC_SUCCESS && reply.type == MSG_ECHO_REPLY) {
+        // Ensure null termination with proper bounds checking
+        size_t safe_len = reply.payload_len;
+        if (safe_len >= IPC_MAX_PAYLOAD) {
+            safe_len = IPC_MAX_PAYLOAD - 1;
+        }
+        reply.payload[safe_len] = '\0';
+        puts_both("Echo reply received: ");
+        puts_both((const char *)reply.payload);
+        puts_both("\n");
+    } else {
+        puts_both("Error: no reply received\n");
+    }
+}
+
+static void cmd_timertick(void) {
+    puts_both("Triggering timer tick...\n");
+    timer_service_tick();
+    puts_both("Timer tick sent to subscribers\n");
+}
+
 
 static void exec_line(const char *line) {
     line = skip_spaces(line);
@@ -78,14 +186,54 @@ static void exec_line(const char *line) {
         cmd_about();
         return;
     }
+    if (str_eq(line, "services")) {
+        cmd_services();
+        return;
+    }
+    if (str_eq(line, "timertick")) {
+        cmd_timertick();
+        return;
+    }
     if (str_eq(line, "halt")) {
         cmd_halt();
         return;
     }
 
+    // log <text>
+    static const char log_prefix[] = "log";
+    const char *p = line;
+    for (size_t i = 0; i < sizeof(log_prefix) - 1; i++) {
+        if (p[i] != log_prefix[i]) {
+            p = NULL;
+            break;
+        }
+    }
+    if (p && (p[sizeof(log_prefix) - 1] == ' ' || p[sizeof(log_prefix) - 1] == '\t' || p[sizeof(log_prefix) - 1] == '\0')) {
+        p += sizeof(log_prefix) - 1;
+        p = skip_spaces(p);
+        cmd_log(p);
+        return;
+    }
+    
+    // ipcecho <text>
+    static const char ipcecho_prefix[] = "ipcecho";
+    p = line;
+    for (size_t i = 0; i < sizeof(ipcecho_prefix) - 1; i++) {
+        if (p[i] != ipcecho_prefix[i]) {
+            p = NULL;
+            break;
+        }
+    }
+    if (p && (p[sizeof(ipcecho_prefix) - 1] == ' ' || p[sizeof(ipcecho_prefix) - 1] == '\t' || p[sizeof(ipcecho_prefix) - 1] == '\0')) {
+        p += sizeof(ipcecho_prefix) - 1;
+        p = skip_spaces(p);
+        cmd_ipcecho(p);
+        return;
+    }
+
     // echo <text>
     static const char echo_prefix[] = "echo";
-    const char *p = line;
+    p = line;
     for (size_t i = 0; i < sizeof(echo_prefix) - 1; i++) {
         if (p[i] != echo_prefix[i]) {
             p = NULL;
