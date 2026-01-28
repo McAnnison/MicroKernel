@@ -35,7 +35,8 @@ KERNEL_C_SRCS := \
   src/kernel/util.c \
   src/services/console_service.c \
   src/services/echo_service.c \
-  src/services/timer_service.c
+  src/services/timer_service.c \
+  src/services/monitor_service.c
 
 KERNEL_ASM_SRCS := \
 	src/arch/$(ARCH)/boot.S \

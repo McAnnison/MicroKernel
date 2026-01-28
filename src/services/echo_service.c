@@ -2,6 +2,7 @@
 #include "kernel/service_registry.h"
 #include "kernel/serial.h"
 #include "kernel/util.h"
+#include "kernel/panic.h"
 #include <stddef.h>
 
 static endpoint_id_t echo_endpoint = ENDPOINT_INVALID;
@@ -40,7 +41,11 @@ void echo_service_process(void) {
     // Process all pending messages
     ipc_msg_t msg;
     while (ipc_recv(echo_endpoint, &msg) == IPC_SUCCESS) {
-        if (msg.type == MSG_ECHO) {
+        if (msg.type == MSG_CRASH) {
+            // Intentional crash for fault isolation demo
+            serial_write("echo_service: CRASH MESSAGE RECEIVED - simulating crash!\n");
+            panic("echo_service: intentional crash for demo");
+        } else if (msg.type == MSG_ECHO) {
             // Reply with echo response
             ipc_msg_t reply;
             reply.type = MSG_ECHO_REPLY;

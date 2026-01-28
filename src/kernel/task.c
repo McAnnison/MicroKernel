@@ -148,3 +148,31 @@ void scheduler_run(void) {
 
     g_current = -1;
 }
+
+int task_get_current(void) {
+    return g_current;
+}
+
+int task_restart(int task_id) {
+    if (task_id < 0 || task_id >= MAX_TASKS) {
+        return -1;
+    }
+
+    task_t *t = &g_tasks[task_id];
+    
+    // Can only restart if we have the original entry point
+    if (t->entry == NULL) {
+        return -1;
+    }
+
+    // Reset the task state
+    t->state = TASK_RUNNABLE;
+
+    // Prepare new stack (same as task_create)
+    uint32_t *stack_top = (uint32_t *)(g_stacks[task_id] + STACK_SIZE);
+    stack_top = (uint32_t *)((uintptr_t)stack_top & ~((uintptr_t)0xF));
+    *(--stack_top) = (uint32_t)(uintptr_t)task_trampoline;
+    t->sp = stack_top;
+
+    return 0;
+}

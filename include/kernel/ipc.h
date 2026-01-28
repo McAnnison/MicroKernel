@@ -21,6 +21,7 @@ typedef enum {
     MSG_ECHO_REPLY, // Echo response
     MSG_TIMER_TICK, // Timer tick
     MSG_HEARTBEAT,  // Heartbeat for monitoring
+    MSG_CRASH,      // Trigger service crash (for demo)
     MSG_MAX
 } msg_type_t;
 

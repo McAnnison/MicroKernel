@@ -15,3 +15,9 @@ void task_yield(void);
 
 // Runs the cooperative scheduler until no runnable tasks remain.
 void scheduler_run(void);
+
+// Get current task ID (-1 if not in a task)
+int task_get_current(void);
+
+// Restart a crashed task with the same entry point
+int task_restart(int task_id);

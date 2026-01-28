@@ -10,6 +10,7 @@
 #include "services/console_service.h"
 #include "services/echo_service.h"
 #include "services/timer_service.h"
+#include "services/monitor_service.h"
 
 static void puts_both(const char *s) {
     vga_puts(s);
@@ -54,6 +55,7 @@ static void cmd_help(void) {
     puts_both("  log <text>   Send log message to console service\n");
     puts_both("  ipcecho <text> Send echo request via IPC\n");
     puts_both("  timertick    Trigger timer tick\n");
+    puts_both("  crash        Crash echo service (fault isolation demo)\n");
     puts_both("  halt         Halt CPU\n");
 }
 
@@ -167,6 +169,44 @@ static void cmd_timertick(void) {
     puts_both("Timer tick sent to subscribers\n");
 }
 
+static void cmd_crash(void) {
+    puts_both("[CRASH DEMO] Sending crash message to echo service...\n");
+    
+    endpoint_id_t echo_ep = service_lookup(ECHO_SERVICE_NAME);
+    if (echo_ep == ENDPOINT_INVALID) {
+        puts_both("Error: echo service not found\n");
+        return;
+    }
+    
+    ipc_msg_t crash_msg;
+    crash_msg.type = MSG_CRASH;
+    crash_msg.sender = ENDPOINT_INVALID;
+    crash_msg.payload_len = 0;
+    
+    ipc_error_t err = ipc_send(echo_ep, &crash_msg);
+    if (err != IPC_SUCCESS) {
+        puts_both("Error: failed to send crash message\n");
+        return;
+    }
+    
+    puts_both("[CRASH DEMO] Crash message sent. Processing...\n");
+    
+    // Process the message (this should trigger the crash)
+    echo_service_process();
+    
+    // If we get here, the service crashed and we caught it
+    puts_both("[CRASH DEMO] Service crashed! Monitor will restart it.\n");
+    
+    // Report crash to monitor
+    extern void monitor_report_crash(endpoint_id_t);
+    monitor_report_crash(echo_ep);
+    
+    // Run monitor to restart service
+    monitor_service_process();
+    
+    puts_both("[CRASH DEMO] Test the echo service again with 'ipcecho test'\n");
+}
+
 
 static void exec_line(const char *line) {
     line = skip_spaces(line);
@@ -192,6 +232,10 @@ static void exec_line(const char *line) {
     }
     if (str_eq(line, "timertick")) {
         cmd_timertick();
+        return;
+    }
+    if (str_eq(line, "crash")) {
+        cmd_crash();
         return;
     }
     if (str_eq(line, "halt")) {
