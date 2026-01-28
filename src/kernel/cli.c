@@ -7,6 +7,8 @@
 #include "kernel/vga.h"
 #include "kernel/ipc.h"
 #include "kernel/service_registry.h"
+#include "kernel/util.h"
+#include "kernel/timing.h"
 #include "services/console_service.h"
 #include "services/echo_service.h"
 #include "services/timer_service.h"
@@ -55,6 +57,7 @@ static void cmd_help(void) {
     puts_both("  log <text>   Send log message to console service\n");
     puts_both("  ipcecho <text> Send echo request via IPC\n");
     puts_both("  timertick    Trigger timer tick\n");
+    puts_both("  bench [n]    Benchmark direct vs IPC\n");
     puts_both("  crash        Crash echo service (fault isolation demo)\n");
     puts_both("  halt         Halt CPU\n");
 }
@@ -169,6 +172,125 @@ static void cmd_timertick(void) {
     puts_both("Timer tick sent to subscribers\n");
 }
 
+static uint32_t parse_u32_or_default(const char *s, uint32_t def) {
+    s = skip_spaces(s);
+    if (!s || *s == '\0') {
+        return def;
+    }
+    uint32_t v = 0;
+    int any = 0;
+    while (*s >= '0' && *s <= '9') {
+        any = 1;
+        uint32_t digit = (uint32_t)(*s - '0');
+        // very simple overflow clamp
+        if (v > 400000000u) {
+            return def;
+        }
+        v = v * 10u + digit;
+        s++;
+    }
+    return any ? v : def;
+}
+
+static void print_tsc_delta(const char *label, tsc_t d) {
+    char hi[9];
+    char lo[9];
+    u32_to_hex(d.hi, hi, sizeof(hi));
+    u32_to_hex(d.lo, lo, sizeof(lo));
+
+    puts_both(label);
+    puts_both("0x");
+    puts_both(hi);
+    puts_both(lo);
+    puts_both("\n");
+}
+
+static void direct_echo_copy(const uint8_t *in, uint32_t len, uint8_t *out) {
+    if (!in || !out) {
+        return;
+    }
+    if (len > IPC_MAX_PAYLOAD) {
+        len = IPC_MAX_PAYLOAD;
+    }
+    for (uint32_t i = 0; i < len; i++) {
+        out[i] = in[i];
+    }
+}
+
+static void cmd_bench(const char *args) {
+    uint32_t n = parse_u32_or_default(args, 2000u);
+    if (n == 0) {
+        n = 1;
+    }
+
+    endpoint_id_t echo_ep = service_lookup(ECHO_SERVICE_NAME);
+    if (echo_ep == ENDPOINT_INVALID) {
+        puts_both("bench: echo service not found\n");
+        return;
+    }
+
+    endpoint_id_t client_ep = ipc_endpoint_create();
+    if (client_ep == ENDPOINT_INVALID) {
+        puts_both("bench: failed to create client endpoint\n");
+        return;
+    }
+
+    uint8_t payload[IPC_MAX_PAYLOAD];
+    uint8_t out[IPC_MAX_PAYLOAD];
+    for (uint32_t i = 0; i < IPC_MAX_PAYLOAD; i++) {
+        payload[i] = (uint8_t)('A' + (i % 26));
+        out[i] = 0;
+    }
+
+    uint32_t payload_len = 32;
+
+    puts_both("bench: iterations=");
+    char nbuf[16];
+    uint_to_str(n, nbuf, sizeof(nbuf));
+    puts_both(nbuf);
+    puts_both("\n");
+
+    // Direct-call benchmark
+    tsc_t t0 = tsc_now();
+    for (uint32_t i = 0; i < n; i++) {
+        direct_echo_copy(payload, payload_len, out);
+    }
+    tsc_t t1 = tsc_now();
+    tsc_t d_direct = tsc_sub(t1, t0);
+
+    // IPC benchmark (client -> echo service -> client)
+    ipc_msg_t msg;
+    msg.type = MSG_ECHO;
+    msg.sender = client_ep;
+    msg.payload_len = payload_len;
+    for (uint32_t i = 0; i < payload_len; i++) {
+        msg.payload[i] = payload[i];
+    }
+
+    tsc_t t2 = tsc_now();
+    for (uint32_t i = 0; i < n; i++) {
+        if (ipc_send(echo_ep, &msg) != IPC_SUCCESS) {
+            puts_both("bench: ipc_send failed\n");
+            break;
+        }
+
+        // Let the service handle the request
+        echo_service_process();
+
+        ipc_msg_t reply;
+        if (ipc_recv(client_ep, &reply) != IPC_SUCCESS || reply.type != MSG_ECHO_REPLY) {
+            puts_both("bench: missing/invalid reply\n");
+            break;
+        }
+    }
+    tsc_t t3 = tsc_now();
+    tsc_t d_ipc = tsc_sub(t3, t2);
+
+    print_tsc_delta("bench: direct cycles = ", d_direct);
+    print_tsc_delta("bench: ipc cycles    = ", d_ipc);
+    puts_both("bench: (counts are TSC delta; compare magnitudes)\n");
+}
+
 static void cmd_crash(void) {
     puts_both("[CRASH DEMO] Sending crash message to echo service...\n");
     
@@ -232,6 +354,10 @@ static void exec_line(const char *line) {
     }
     if (str_eq(line, "timertick")) {
         cmd_timertick();
+        return;
+    }
+    if (line[0] == 'b' && line[1] == 'e' && line[2] == 'n' && line[3] == 'c' && line[4] == 'h' && (line[5] == '\0' || line[5] == ' ' || line[5] == '\t')) {
+        cmd_bench(line + 5);
         return;
     }
     if (str_eq(line, "crash")) {

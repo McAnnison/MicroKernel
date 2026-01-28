@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-multilib \
+            grub-pc-bin \
+            xorriso \
+            qemu-system-x86
+
+      - name: Build ISO
+        run: |
+          make clean
+          make
+
+      - name: Smoke check (kernel ELF exists)
+        run: |
+          test -f build/kernel.elf
+          test -f build/microkernel.iso

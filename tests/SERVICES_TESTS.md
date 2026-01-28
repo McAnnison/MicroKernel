@@ -202,6 +202,33 @@ Commands:
 - All new service commands are listed
 - Command descriptions are clear
 
+## Test 9: Fault Isolation (Crash + Restart)
+
+**Objective:** Verify a service can crash without killing the kernel, and that it can be restarted.
+
+**Procedure:**
+1. Boot the system
+2. Type: `ipcecho before`
+3. Type: `crash`
+4. Type: `ipcecho after`
+
+**Pass Criteria:**
+- Kernel remains responsive after `crash`
+- Echo service responds again after restart
+
+## Test 10: Performance Benchmark
+
+**Objective:** Compare direct-call overhead vs IPC overhead.
+
+**Procedure:**
+1. Boot the system
+2. Type: `bench`
+3. (Optional) Type: `bench 5000`
+
+**Expected Output:**
+- Prints two cycle counts: `direct cycles` and `ipc cycles`
+- IPC should generally be noticeably larger than direct
+
 ## Automated Testing Notes
 
 These tests can be partially automated using expect scripts or similar tools to:

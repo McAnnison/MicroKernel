@@ -41,6 +41,20 @@ size_t uint_to_str(uint32_t value, char *buf, size_t buf_size) {
     return i;
 }
 
+size_t u32_to_hex(uint32_t value, char *buf, size_t buf_size) {
+    static const char hex[] = "0123456789ABCDEF";
+    if (!buf || buf_size < 9) {
+        return 0;
+    }
+
+    for (int i = 0; i < 8; i++) {
+        uint32_t shift = 28u - (uint32_t)(i * 4);
+        buf[i] = hex[(value >> shift) & 0xFu];
+    }
+    buf[8] = '\0';
+    return 8;
+}
+
 size_t str_len(const char *s) {
     if (!s) {
         return 0;
