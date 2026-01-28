@@ -9,6 +9,7 @@
 #include "kernel/service_registry.h"
 #include "kernel/util.h"
 #include "kernel/timing.h"
+#include "kernel/task.h"
 #include "services/console_service.h"
 #include "services/echo_service.h"
 #include "services/timer_service.h"
@@ -102,8 +103,6 @@ static void cmd_log(const char *text) {
     ipc_error_t err = ipc_send(console_ep, &msg);
     if (err == IPC_SUCCESS) {
         puts_both("Log message sent via IPC\n");
-        // Process console service to print the message
-        console_service_process();
     } else {
         puts_both("Error: failed to send log message\n");
     }
@@ -116,17 +115,19 @@ static void cmd_ipcecho(const char *text) {
         return;
     }
     
-    // Create a temporary endpoint for receiving the reply
-    endpoint_id_t reply_ep = ipc_endpoint_create();
-    if (reply_ep == ENDPOINT_INVALID) {
-        puts_both("Error: failed to create reply endpoint\n");
-        return;
+    static endpoint_id_t cli_ep = ENDPOINT_INVALID;
+    if (cli_ep == ENDPOINT_INVALID) {
+        cli_ep = ipc_endpoint_create();
+        if (cli_ep == ENDPOINT_INVALID) {
+            puts_both("Error: failed to create cli endpoint\n");
+            return;
+        }
     }
     
     // Create and send echo request
     ipc_msg_t msg;
     msg.type = MSG_ECHO;
-    msg.sender = reply_ep;
+    msg.sender = cli_ep;
     
     // Copy text to payload
     size_t len = 0;
@@ -145,12 +146,15 @@ static void cmd_ipcecho(const char *text) {
     
     puts_both("Echo request sent via IPC, processing...\n");
     
-    // Process echo service
-    echo_service_process();
-    
-    // Try to receive reply
+    // Wait for reply (cooperatively)
     ipc_msg_t reply;
-    err = ipc_recv(reply_ep, &reply);
+    for (;;) {
+        err = ipc_recv(cli_ep, &reply);
+        if (err == IPC_SUCCESS) {
+            break;
+        }
+        task_yield();
+    }
     if (err == IPC_SUCCESS && reply.type == MSG_ECHO_REPLY) {
         // Ensure null termination with proper bounds checking
         size_t safe_len = reply.payload_len;
@@ -229,10 +233,13 @@ static void cmd_bench(const char *args) {
         return;
     }
 
-    endpoint_id_t client_ep = ipc_endpoint_create();
-    if (client_ep == ENDPOINT_INVALID) {
-        puts_both("bench: failed to create client endpoint\n");
-        return;
+    static endpoint_id_t cli_ep = ENDPOINT_INVALID;
+    if (cli_ep == ENDPOINT_INVALID) {
+        cli_ep = ipc_endpoint_create();
+        if (cli_ep == ENDPOINT_INVALID) {
+            puts_both("bench: failed to create client endpoint\n");
+            return;
+        }
     }
 
     uint8_t payload[IPC_MAX_PAYLOAD];
@@ -261,7 +268,7 @@ static void cmd_bench(const char *args) {
     // IPC benchmark (client -> echo service -> client)
     ipc_msg_t msg;
     msg.type = MSG_ECHO;
-    msg.sender = client_ep;
+    msg.sender = cli_ep;
     msg.payload_len = payload_len;
     for (uint32_t i = 0; i < payload_len; i++) {
         msg.payload[i] = payload[i];
@@ -274,11 +281,14 @@ static void cmd_bench(const char *args) {
             break;
         }
 
-        // Let the service handle the request
-        echo_service_process();
-
         ipc_msg_t reply;
-        if (ipc_recv(client_ep, &reply) != IPC_SUCCESS || reply.type != MSG_ECHO_REPLY) {
+        for (;;) {
+            if (ipc_recv(cli_ep, &reply) == IPC_SUCCESS) {
+                break;
+            }
+            task_yield();
+        }
+        if (reply.type != MSG_ECHO_REPLY) {
             puts_both("bench: missing/invalid reply\n");
             break;
         }
@@ -311,22 +321,8 @@ static void cmd_crash(void) {
         return;
     }
     
-    puts_both("[CRASH DEMO] Crash message sent. Processing...\n");
-    
-    // Process the message (this should trigger the crash)
-    echo_service_process();
-    
-    // If we get here, the service crashed and we caught it
-    puts_both("[CRASH DEMO] Service crashed! Monitor will restart it.\n");
-    
-    // Report crash to monitor
-    extern void monitor_report_crash(endpoint_id_t);
-    monitor_report_crash(echo_ep);
-    
-    // Run monitor to restart service
-    monitor_service_process();
-    
-    puts_both("[CRASH DEMO] Test the echo service again with 'ipcecho test'\n");
+    puts_both("[CRASH DEMO] Crash message sent. Echo task should die; monitor will restart it.\n");
+    puts_both("[CRASH DEMO] After a moment, try: ipcecho test\n");
 }
 
 
@@ -430,7 +426,12 @@ void cli_run(void) {
     prompt();
 
     for (;;) {
-        char c = serial_read_blocking();
+        char c;
+        if (!serial_read_nonblocking(&c)) {
+            // Let other tasks run.
+            task_yield();
+            continue;
+        }
 
         if (c == '\r' || c == '\n') {
             puts_both("\n");

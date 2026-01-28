@@ -3,6 +3,7 @@
 #include "kernel/serial.h"
 #include "kernel/util.h"
 #include "kernel/panic.h"
+#include "services/monitor_service.h"
 #include <stddef.h>
 
 static endpoint_id_t echo_endpoint = ENDPOINT_INVALID;
@@ -44,6 +45,7 @@ void echo_service_process(void) {
         if (msg.type == MSG_CRASH) {
             // Intentional crash for fault isolation demo
             serial_write("echo_service: CRASH MESSAGE RECEIVED - simulating crash!\n");
+            monitor_report_crash(echo_endpoint);
             panic("echo_service: intentional crash for demo");
         } else if (msg.type == MSG_ECHO) {
             // Reply with echo response

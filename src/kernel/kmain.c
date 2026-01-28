@@ -13,6 +13,35 @@
 #include "services/timer_service.h"
 #include "services/monitor_service.h"
 
+static void console_task(void *arg) {
+    (void)arg;
+    for (;;) {
+        console_service_process();
+        task_yield();
+    }
+}
+
+static void echo_task(void *arg) {
+    (void)arg;
+    for (;;) {
+        echo_service_process();
+        task_yield();
+    }
+}
+
+static void monitor_task(void *arg) {
+    (void)arg;
+    for (;;) {
+        monitor_service_process();
+        task_yield();
+    }
+}
+
+static void cli_task(void *arg) {
+    (void)arg;
+    cli_run();
+}
+
 void kmain(void) {
     vga_init();
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLUE);
@@ -43,7 +72,22 @@ void kmain(void) {
     vga_puts("Type `help` for commands.\n");
     vga_puts("Try 'crash' to test fault isolation!\n");
 
-    cli_run();
+    // Start cooperative tasks
+    task_init();
+    int console_tid = task_create("console", console_task, NULL);
+    int echo_tid = task_create("echo", echo_task, NULL);
+    (void)task_create("monitor", monitor_task, NULL);
+    (void)task_create("cli", cli_task, NULL);
 
-    panic("kmain returned");
+    // Register services for restart (echo is the crash demo target)
+    if (echo_tid >= 0) {
+        monitor_register_service(echo_tid, echo_service_get_endpoint(), ECHO_SERVICE_NAME);
+    }
+    if (console_tid >= 0) {
+        monitor_register_service(console_tid, console_service_get_endpoint(), CONSOLE_SERVICE_NAME);
+    }
+
+    scheduler_run();
+
+    panic("scheduler exited");
 }

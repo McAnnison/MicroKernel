@@ -21,3 +21,7 @@ int task_get_current(void);
 
 // Restart a crashed task with the same entry point
 int task_restart(int task_id);
+
+// Mark the current task as finished and yield back to the scheduler.
+// Safe to call only from within a running task.
+void task_exit_current(void);

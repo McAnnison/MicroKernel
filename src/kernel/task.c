@@ -43,6 +43,13 @@ __attribute__((noreturn)) static void task_exit(void) {
     }
 }
 
+void task_exit_current(void) {
+    if (g_current >= 0 && g_current < MAX_TASKS) {
+        g_tasks[g_current].state = TASK_FINISHED;
+    }
+    task_yield();
+}
+
 __attribute__((noreturn)) static void task_trampoline(void) {
     int idx = g_current;
     if (idx < 0 || idx >= MAX_TASKS) {
@@ -140,9 +147,7 @@ void scheduler_run(void) {
         if (g_tasks[next].state == TASK_FINISHED) {
             g_tasks[next].state = TASK_UNUSED;
             g_tasks[next].sp = NULL;
-            g_tasks[next].entry = NULL;
-            g_tasks[next].arg = NULL;
-            g_tasks[next].name = NULL;
+            // Keep entry/arg/name so the monitor can restart by task id.
         }
     }
 

@@ -17,11 +17,10 @@ void panic(const char *msg) {
     // Check if we're in a task context
     int current_task = task_get_current();
     if (current_task >= 0) {
-        // We're in a task - exit gracefully instead of halting the whole kernel
-        serial_write("PANIC: Task context detected - yielding to scheduler\n");
-        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLUE); // Restore color
-        
-        // Task will be marked as FINISHED and cleaned up
+        // We're in a task - terminate only this task.
+        serial_write("PANIC: Task context detected - terminating task\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLUE);
+        task_exit_current();
         for (;;) {
             task_yield();
         }

@@ -49,3 +49,14 @@ char serial_read_blocking(void) {
     }
     return (char)inb(COM1);
 }
+
+int serial_read_nonblocking(char *out) {
+    if (!out) {
+        return 0;
+    }
+    if (!serial_received()) {
+        return 0;
+    }
+    *out = (char)inb(COM1);
+    return 1;
+}
