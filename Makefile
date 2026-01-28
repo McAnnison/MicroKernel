@@ -26,12 +26,14 @@ LDFLAGS := -m elf_i386 -nostdlib -T src/arch/$(ARCH)/linker.ld
 KERNEL_C_SRCS := \
   src/kernel/kmain.c \
 	src/kernel/cli.c \
+	src/kernel/task.c \
   src/kernel/vga.c \
   src/kernel/serial.c \
   src/kernel/panic.c
 
 KERNEL_ASM_SRCS := \
-  src/arch/$(ARCH)/boot.S
+	src/arch/$(ARCH)/boot.S \
+	src/arch/$(ARCH)/context_switch.S
 
 KERNEL_OBJS := \
   $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(KERNEL_C_SRCS)) \
