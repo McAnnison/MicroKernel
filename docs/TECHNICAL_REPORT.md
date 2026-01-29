@@ -391,9 +391,14 @@ The prototype achieves modularity and clear service boundaries. IPC overhead is 
 
 ### 6.2 Limitations
 
-- Services currently run as kernel tasks (no user-mode isolation yet).
-- IPC performance is not fully optimized.
-- Hardware drivers are minimal (serial + VGA only).
+- No hardware-enforced isolation yet: services run as cooperative kernel tasks in a single address space (ring 0), so memory corruption in one task can still affect the whole system.
+- Cooperative scheduler only: tasks must yield explicitly (`task_yield()`), so a misbehaving task can monopolize CPU time (no preemption/time slicing).
+- IPC is intentionally minimal: fixed-size messages with bounded queues (`IPC_MAX_PAYLOAD`, `IPC_QUEUE_SIZE`), simple endpoints (`IPC_MAX_ENDPOINTS`), and non-blocking primitives that require yield-based waiting at call sites.
+- Fault handling is demo-oriented: the crash demo uses an intentional `panic()` path; general fault recovery (e.g., invalid memory access) is not robust in the current execution model.
+- Restart semantics are limited: `task_restart()` restarts a task entry point, but full service re-initialization, state reconciliation, and endpoint/registry lifecycle management are simplified.
+- Driver and subsystem scope is small: serial + VGA output only; no keyboard input, filesystem, networking, or broader device abstraction layer.
+- No memory management or security model: no paging-based protection domains, capabilities, or access-control enforcement between services.
+- Benchmark results are approximate: the `bench` command reports TSC deltas under QEMU for a specific workload, which is useful for relative comparison but not a definitive real-hardware performance evaluation.
 
 ### 6.3 Future Work
 
