@@ -1,5 +1,6 @@
 #include "kernel/service_registry.h"
 #include "kernel/serial.h"
+#include "kernel/vga.h"
 #include <stddef.h>
 
 // Global service registry
@@ -66,10 +67,14 @@ endpoint_id_t service_lookup(const char *name) {
 }
 
 void service_list_all(void) {
+    vga_puts("Registered services:\n");
     serial_write("Registered services:\n");
     int count = 0;
     for (int i = 0; i < SERVICE_MAX_ENTRIES; i++) {
         if (services[i].active) {
+            vga_puts("  - ");
+            vga_puts(services[i].name);
+            vga_puts("\n");
             serial_write("  - ");
             serial_write(services[i].name);
             serial_write("\n");
@@ -77,6 +82,7 @@ void service_list_all(void) {
         }
     }
     if (count == 0) {
+        vga_puts("  (none)\n");
         serial_write("  (none)\n");
     }
 }
