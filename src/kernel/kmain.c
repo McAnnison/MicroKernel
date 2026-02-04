@@ -2,6 +2,7 @@
 #include <stddef.h>
 
 #include "kernel/cli.h"
+#include "kernel/keyboard.h"
 #include "kernel/panic.h"
 #include "kernel/serial.h"
 #include "kernel/task.h"
@@ -49,6 +50,7 @@ void kmain(void) {
 
     serial_init();
     serial_write("microkernel: serial online\n");
+    keyboard_init();
 
     // Initialize IPC subsystem
     ipc_init();

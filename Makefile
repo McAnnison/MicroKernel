@@ -36,7 +36,8 @@ KERNEL_C_SRCS := \
   src/services/console_service.c \
   src/services/echo_service.c \
   src/services/timer_service.c \
-  src/services/monitor_service.c
+  src/services/monitor_service.c \
+  src/kernel/keyboard.c
 
 KERNEL_ASM_SRCS := \
 	src/arch/$(ARCH)/boot.S \
@@ -74,7 +75,7 @@ $(ISO_IMAGE): $(KERNEL_ELF) boot/grub/grub.cfg
 	grub-mkrescue -o $@ $(ISO_DIR) >/dev/null
 
 run: $(ISO_IMAGE)
-	qemu-system-i386 -cdrom $(ISO_IMAGE) -serial stdio
+	qemu-system-i386 -cdrom $(ISO_IMAGE) -display gtk -serial stdio
 
 clean:
 	rm -rf $(BUILD_DIR) $(ISO_DIR)

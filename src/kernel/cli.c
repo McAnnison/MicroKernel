@@ -1,4 +1,5 @@
 #include "kernel/cli.h"
+#include "kernel/keyboard.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -427,7 +428,15 @@ void cli_run(void) {
 
     for (;;) {
         char c;
-        if (!serial_read_nonblocking(&c)) {
+        int got_input = 0;
+        int from_serial = 0;
+        if (keyboard_read_nonblocking(&c)) {
+            got_input = 1;
+        } else if (serial_read_nonblocking(&c)) {
+            got_input = 1;
+            from_serial = 1;
+        }
+        if (!got_input) {
             // Let other tasks run.
             task_yield();
             continue;
@@ -461,7 +470,9 @@ void cli_run(void) {
             line[len++] = c;
             // local echo
             vga_putc(c);
-            serial_write((char[]){c, 0});
+            if (from_serial) {
+                serial_write((char[]){c, 0});
+            }
         }
     }
 }

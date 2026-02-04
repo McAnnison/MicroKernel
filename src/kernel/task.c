@@ -104,7 +104,19 @@ int task_create(const char *name, task_entry_t entry, void *arg) {
     // Align to 16 bytes for good measure.
     stack_top = (uint32_t *)((uintptr_t)stack_top & ~((uintptr_t)0xF));
 
-    *(--stack_top) = (uint32_t)(uintptr_t)task_trampoline;
+    // Stack layout expected by ctx_switch (top -> bottom):
+    // EDI, ESI, EBP, ESP(dummy), EBX, EDX, ECX, EAX, EFLAGS, RET
+    *(--stack_top) = (uint32_t)(uintptr_t)task_trampoline; // RET
+    *(--stack_top) = 0x2u; // EFLAGS (IF=0)
+    *(--stack_top) = 0; // EAX
+    *(--stack_top) = 0; // ECX
+    *(--stack_top) = 0; // EDX
+    *(--stack_top) = 0; // EBX
+    *(--stack_top) = 0; // ESP (ignored by popad)
+    *(--stack_top) = 0; // EBP
+    *(--stack_top) = 0; // ESI
+    *(--stack_top) = 0; // EDI
+
     g_tasks[id].sp = stack_top;
 
     return id;
@@ -176,7 +188,18 @@ int task_restart(int task_id) {
     // Prepare new stack (same as task_create)
     uint32_t *stack_top = (uint32_t *)(g_stacks[task_id] + STACK_SIZE);
     stack_top = (uint32_t *)((uintptr_t)stack_top & ~((uintptr_t)0xF));
-    *(--stack_top) = (uint32_t)(uintptr_t)task_trampoline;
+
+    *(--stack_top) = (uint32_t)(uintptr_t)task_trampoline; // RET
+    *(--stack_top) = 0x2u; // EFLAGS (IF=0)
+    *(--stack_top) = 0; // EAX
+    *(--stack_top) = 0; // ECX
+    *(--stack_top) = 0; // EDX
+    *(--stack_top) = 0; // EBX
+    *(--stack_top) = 0; // ESP (ignored by popad)
+    *(--stack_top) = 0; // EBP
+    *(--stack_top) = 0; // ESI
+    *(--stack_top) = 0; // EDI
+
     t->sp = stack_top;
 
     return 0;

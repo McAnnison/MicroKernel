@@ -105,6 +105,33 @@ ipcecho Test   # Test echo service
 
 See [services/README.md](services/README.md) for details.
 
+## Terminal Tasks & Service Commands
+
+**Build & Run Tasks (VS Code or terminal):**
+- **Build ISO:**
+	- Command: `wsl --cd <workspaceFolder> -- make`
+	- Description: Builds the microkernel ISO image.
+- **Run QEMU:**
+	- Command: `wsl --cd <workspaceFolder> -- make run`
+	- Description: Boots the microkernel in QEMU for testing.
+
+**Service Commands (in QEMU CLI):**
+- `services` — List all registered services.
+- `log <text>` — Send a log message to the console service.
+- `ipcecho <text>` — Send an echo request via IPC.
+- `timertick` — Trigger a timer tick to all subscribers.
+
+**Other Useful Commands:**
+- `help` — Show all available commands.
+- `crash` — Simulate a service crash (for fault isolation testing).
+- `bench [count]` — Run performance benchmarks.
+
+**How to Test:**
+1. Build and run the kernel:
+	 - In VS Code: Use the "Build ISO (WSL)" and "Run QEMU (WSL)" tasks.
+	 - In terminal: Run the build and QEMU commands above.
+2. In the QEMU CLI, use the service commands to interact with and test each service.
+
 ## GitHub workflow
 
 - Use issues from [docs/ISSUES.md](docs/ISSUES.md) as the starting backlog.
